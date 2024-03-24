@@ -1,5 +1,7 @@
 package nl.boukenijhuis;
 
+import nl.boukenijhuis.assistants.AIAssistant;
+import nl.boukenijhuis.assistants.chatgpt.ChatGpt;
 import nl.boukenijhuis.assistants.ollama.Ollama;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
@@ -35,6 +37,12 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter(defaultValue = "pxlksr/opencodeinterpreter-ds")
     private String model;
 
+    @Parameter
+    private String apiKey;
+
+    @Parameter
+    private String prompt;
+
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
 
@@ -43,34 +51,9 @@ public class GenerateMojo extends AbstractMojo {
         getLog().info("Generating an implementation for: " + testFilePath);
 
         try {
-            // get the dependencies from the outer pom (the pom which uses this plugin)
-            List<String> jarFiles = project.getTestClasspathElements();                    ;
+            List<String> jarFiles = updateClassLoader();
 
-            // directories NEED a slash at the end
-            List<URL> urls = jarFiles.stream().map(x -> {
-                try {
-                    if (x.endsWith(".jar")) {
-                        return new URL("file://" + x);
-                    } else {
-                        // for directories
-                        return new URL("file://" + x + "/");
-                    }
-                } catch (MalformedURLException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }).toList();
-
-            // update the classloader
-            ClassRealm contextClassLoader = (ClassRealm) Thread.currentThread().getContextClassLoader();
-            ClassLoader cl = new URLClassLoader(urls.toArray(new URL[0]), contextClassLoader);
-            Thread.currentThread().setContextClassLoader(cl);
-
-            Properties properties = new Properties();
-            properties.setProperty(family + ".server", server);
-            properties.setProperty(family + ".url", url);
-            properties.setProperty(family + ".model", model);
-
-            Ollama aiAssistant = new Ollama(properties);
+            AIAssistant aiAssistant = createAssistant();
 
             // jarfiles are necessary for the compilation
             Generator generator = new Generator(jarFiles);
@@ -85,5 +68,63 @@ public class GenerateMojo extends AbstractMojo {
         }
 
 
+    }
+
+    private AIAssistant createAssistant() {
+        Properties properties = new Properties();
+
+        if (family.equalsIgnoreCase("chatgpt")) {
+            properties.setProperty(family + ".server", "https://api.openai.com");
+            properties.setProperty(family + ".url", "/v1/chat/completions");
+            properties.setProperty(family + ".maxTokens", "600");
+            properties.setProperty(family + ".api-key", apiKey);
+        } else {
+            properties.setProperty(family + ".server", server);
+            properties.setProperty(family + ".url", url);
+        }
+        properties.setProperty(family + ".model", model);
+
+        if (prompt != null) {
+            // check if the prompt contains a '%s'
+            if (!prompt.contains("%s")) {
+                getLog().info("!!! The provided prompt does NOT contain '%s': [" + prompt + "].");
+            }
+            properties.setProperty(family + ".prompt", prompt);
+
+        }
+
+        AIAssistant assistant;
+        if (family.equalsIgnoreCase("chatgpt")){
+            assistant = new ChatGpt(properties);
+        } else {
+             assistant = new Ollama(properties);
+        }
+        return assistant;
+    }
+
+    private List<String> updateClassLoader() throws DependencyResolutionRequiredException {
+        // get the dependencies from the outer pom (the pom which uses this plugin)
+        List<String> jarFiles = project.getTestClasspathElements();
+        ;
+
+        // directories NEED a slash at the end
+        List<URL> urls = jarFiles.stream().map(x -> {
+            try {
+                if (x.endsWith(".jar")) {
+                    return new URL("file://" + x);
+                } else {
+                    // for directories
+                    return new URL("file://" + x + "/");
+                }
+            } catch (MalformedURLException ex) {
+                throw new RuntimeException(ex);
+            }
+        }).toList();
+
+        // update the classloader
+        ClassRealm contextClassLoader = (ClassRealm) Thread.currentThread().getContextClassLoader();
+        ClassLoader cl = new URLClassLoader(urls.toArray(new URL[0]), contextClassLoader);
+        Thread.currentThread().setContextClassLoader(cl);
+        return jarFiles;
     }
 }
