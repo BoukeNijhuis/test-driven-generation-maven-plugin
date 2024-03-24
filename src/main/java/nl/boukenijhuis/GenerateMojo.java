@@ -25,7 +25,7 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter(defaultValue = "")
     private String testFilePath;
 
-    @Parameter(defaultValue = "http://localhost:8080")
+    @Parameter(defaultValue = "http://localhost:11434")
     private String server;
 
     @Parameter(defaultValue = "/api/generate")
@@ -60,6 +60,8 @@ public class GenerateMojo extends AbstractMojo {
 
             String[] args = {testFilePath};
             generator.run(aiAssistant, new TestRunner(), args);
+
+            // TODO fail the build when no solution found
 
         } catch (IOException | DependencyResolutionRequiredException e) {
             e.printStackTrace(System.out);
