@@ -59,9 +59,11 @@ public class GenerateMojo extends AbstractMojo {
             Generator generator = new Generator(jarFiles);
 
             String[] args = {testFilePath};
-            generator.run(aiAssistant, new TestRunner(), args);
+            boolean result = generator.run(aiAssistant, new TestRunner(), args);
 
-            // TODO fail the build when no solution found
+            if (!result) {
+                throw new MojoExecutionException("No solution found");
+            }
 
         } catch (IOException | DependencyResolutionRequiredException e) {
             e.printStackTrace(System.out);
