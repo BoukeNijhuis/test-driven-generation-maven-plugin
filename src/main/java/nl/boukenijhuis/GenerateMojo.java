@@ -13,6 +13,7 @@ import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 import java.util.Properties;
 
@@ -22,7 +23,7 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter(defaultValue = "")
     private String testFilePath;
 
-    @Parameter(defaultValue = "http://localhost:11434")
+    @Parameter(defaultValue = "http://localhost:8080")
     private String server;
 
     @Parameter(defaultValue = "/api/generate")
@@ -43,9 +44,7 @@ public class GenerateMojo extends AbstractMojo {
 
         try {
             // get the dependencies from the outer pom (the pom which uses this plugin)
-            List<String> jarFiles = project.getTestClasspathElements()
-                    // TODO: remove logback hack?
-                    .stream().filter(x -> !x.contains("logback")).toList();
+            List<String> jarFiles = project.getTestClasspathElements();                    ;
 
             // directories NEED a slash at the end
             List<URL> urls = jarFiles.stream().map(x -> {
@@ -63,9 +62,8 @@ public class GenerateMojo extends AbstractMojo {
 
             // update the classloader
             ClassRealm contextClassLoader = (ClassRealm) Thread.currentThread().getContextClassLoader();
-            for (URL url : urls) {
-                contextClassLoader.addURL(url);
-            }
+            ClassLoader cl = new URLClassLoader(urls.toArray(new URL[0]), contextClassLoader);
+            Thread.currentThread().setContextClassLoader(cl);
 
             Properties properties = new Properties();
             properties.setProperty(family + ".server", server);
