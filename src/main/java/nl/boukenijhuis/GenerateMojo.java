@@ -87,6 +87,7 @@ public class GenerateMojo extends AbstractMojo {
             properties.setProperty(family + ".url", url);
         }
         properties.setProperty(family + ".model", model);
+        properties.setProperty(family + ".timeout", "30");
 
         if (prompt != null) {
             // check if the prompt contains a '%s'
