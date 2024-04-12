@@ -10,13 +10,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.classworlds.realm.ClassRealm;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.List;
 import java.util.Properties;
 
 @Mojo(name = "generate", requiresDependencyResolution = ResolutionScope.TEST)
@@ -37,6 +32,9 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter(defaultValue = "pxlksr/opencodeinterpreter-ds")
     private String model;
 
+    @Parameter(defaultValue = "30")
+    private String timeout;
+
     @Parameter
     private String apiKey;
 
@@ -51,12 +49,10 @@ public class GenerateMojo extends AbstractMojo {
         getLog().info("Generating an implementation for: " + testFilePath);
 
         try {
-            List<String> jarFiles = updateClassLoader();
-
             AIAssistant aiAssistant = createAssistant();
 
             // jarfiles are necessary for the compilation
-            Generator generator = new Generator(jarFiles);
+            Generator generator = new Generator(project.getTestClasspathElements());
 
             String[] args = {testFilePath};
             boolean result = generator.run(aiAssistant, new TestRunner(), args);
@@ -87,7 +83,7 @@ public class GenerateMojo extends AbstractMojo {
             properties.setProperty(family + ".url", url);
         }
         properties.setProperty(family + ".model", model);
-        properties.setProperty(family + ".timeout", "30");
+        properties.setProperty(family + ".timeout", timeout);
 
         if (prompt != null) {
             // check if the prompt contains a '%s'
@@ -105,31 +101,5 @@ public class GenerateMojo extends AbstractMojo {
              assistant = new Ollama(properties);
         }
         return assistant;
-    }
-
-    private List<String> updateClassLoader() throws DependencyResolutionRequiredException {
-        // get the dependencies from the outer pom (the pom which uses this plugin)
-        List<String> jarFiles = project.getTestClasspathElements();
-        ;
-
-        // directories NEED a slash at the end
-        List<URL> urls = jarFiles.stream().map(x -> {
-            try {
-                if (x.endsWith(".jar")) {
-                    return new URL("file://" + x);
-                } else {
-                    // for directories
-                    return new URL("file://" + x + "/");
-                }
-            } catch (MalformedURLException ex) {
-                throw new RuntimeException(ex);
-            }
-        }).toList();
-
-        // update the classloader
-        ClassRealm contextClassLoader = (ClassRealm) Thread.currentThread().getContextClassLoader();
-        ClassLoader cl = new URLClassLoader(urls.toArray(new URL[0]), contextClassLoader);
-        Thread.currentThread().setContextClassLoader(cl);
-        return jarFiles;
     }
 }
