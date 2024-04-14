@@ -3,6 +3,7 @@ package nl.boukenijhuis;
 import nl.boukenijhuis.assistants.AIAssistant;
 import nl.boukenijhuis.assistants.chatgpt.ChatGpt;
 import nl.boukenijhuis.assistants.ollama.Ollama;
+import nl.boukenijhuis.dto.ArgumentContainer;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -55,7 +56,7 @@ public class GenerateMojo extends AbstractMojo {
             Generator generator = new Generator(project.getTestClasspathElements());
 
             String[] args = {testFilePath};
-            boolean result = generator.run(aiAssistant, new TestRunner(), args);
+            boolean result = generator.run(aiAssistant, new TestRunner(), new ArgumentContainer(args));
 
             if (!result) {
                 throw new MojoExecutionException("No solution found");
@@ -77,7 +78,12 @@ public class GenerateMojo extends AbstractMojo {
             properties.setProperty(family + ".server", "https://api.openai.com");
             properties.setProperty(family + ".url", "/v1/chat/completions");
             properties.setProperty(family + ".maxTokens", "600");
-            properties.setProperty(family + ".api-key", apiKey);
+
+            // read the OpenAI API from the environment
+            String openAIApiKey = System.getenv("OPENAI_API_KEY");
+            if (openAIApiKey != null) {
+                properties.setProperty(family + ".api-key", openAIApiKey);
+            }
         } else {
             properties.setProperty(family + ".server", server);
             properties.setProperty(family + ".url", url);
