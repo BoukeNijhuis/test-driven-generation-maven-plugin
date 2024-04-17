@@ -67,8 +67,6 @@ public class GenerateMojo extends AbstractMojo {
             getLog().info(e.getMessage());
             throw new MojoExecutionException(e.getMessage());
         }
-
-
     }
 
     private AIAssistant createAssistant() {
