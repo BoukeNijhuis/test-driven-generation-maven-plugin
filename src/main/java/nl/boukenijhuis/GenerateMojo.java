@@ -1,9 +1,5 @@
 package nl.boukenijhuis;
 
-import nl.boukenijhuis.assistants.AIAssistant;
-import nl.boukenijhuis.assistants.chatgpt.ChatGpt;
-import nl.boukenijhuis.assistants.ollama.Ollama;
-import nl.boukenijhuis.dto.ArgumentContainer;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -13,31 +9,28 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
 import java.io.IOException;
-import java.util.Properties;
+import java.util.ArrayList;
 
 @Mojo(name = "generate", requiresDependencyResolution = ResolutionScope.TEST)
 public class GenerateMojo extends AbstractMojo {
 
-    @Parameter(defaultValue = "")
+    @Parameter
     private String testFilePath;
 
-    @Parameter(defaultValue = "http://localhost:11434")
+    @Parameter
     private String server;
 
-    @Parameter(defaultValue = "/api/generate")
+    @Parameter
     private String url;
 
-    @Parameter(defaultValue = "ollama")
+    @Parameter
     private String family;
 
-    @Parameter(defaultValue = "pxlksr/opencodeinterpreter-ds")
+    @Parameter
     private String model;
 
-    @Parameter(defaultValue = "30")
-    private String timeout;
-
     @Parameter
-    private String apiKey;
+    private String timeout;
 
     @Parameter
     private String prompt;
@@ -47,16 +40,34 @@ public class GenerateMojo extends AbstractMojo {
 
     public void execute() throws MojoExecutionException {
 
+        if (testFilePath == null) {
+            throw new MojoExecutionException("Missing test file path");
+        }
+
         getLog().info("Generating an implementation for: " + testFilePath);
 
         try {
-            AIAssistant aiAssistant = createAssistant();
+
+            ArgumentList argumentList = new ArgumentList();
+            argumentList.add("--test-file", testFilePath);
+
+            // TODO add all possible variables found at the top of this file
+
+            // create command line arguments
+            if (prompt != null) {
+                // check if the prompt contains a '%s'
+                if (!prompt.contains("%s")) {
+                    getLog().info("!!! The provided prompt does NOT contain '%s': [" + prompt + "].");
+                }
+                // TODO does this argument exist?
+                argumentList.add("--prompt", prompt);
+            }
 
             // jarfiles are necessary for the compilation
             Generator generator = new Generator(project.getTestClasspathElements());
 
-            String[] args = {testFilePath};
-            boolean result = generator.run(aiAssistant, new TestRunner(), new ArgumentContainer(args));
+            String[] args = argumentList.toArray(new String[0]);
+            boolean result = generator.runGenerator(args);
 
             if (!result) {
                 throw new MojoExecutionException("No solution found");
@@ -69,41 +80,10 @@ public class GenerateMojo extends AbstractMojo {
         }
     }
 
-    private AIAssistant createAssistant() {
-        Properties properties = new Properties();
-
-        if (family.equalsIgnoreCase("chatgpt")) {
-            properties.setProperty(family + ".server", "https://api.openai.com");
-            properties.setProperty(family + ".url", "/v1/chat/completions");
-            properties.setProperty(family + ".maxTokens", "600");
-
-            // read the OpenAI API from the environment
-            String openAIApiKey = System.getenv("OPENAI_API_KEY");
-            if (openAIApiKey != null) {
-                properties.setProperty(family + ".api-key", openAIApiKey);
-            }
-        } else {
-            properties.setProperty(family + ".server", server);
-            properties.setProperty(family + ".url", url);
+    static class ArgumentList extends ArrayList<String> {
+        public void add(String key, String value) {
+            add(key);
+            add(value);
         }
-        properties.setProperty(family + ".model", model);
-        properties.setProperty(family + ".timeout", timeout);
-
-        if (prompt != null) {
-            // check if the prompt contains a '%s'
-            if (!prompt.contains("%s")) {
-                getLog().info("!!! The provided prompt does NOT contain '%s': [" + prompt + "].");
-            }
-            properties.setProperty(family + ".prompt", prompt);
-
-        }
-
-        AIAssistant assistant;
-        if (family.equalsIgnoreCase("chatgpt")){
-            assistant = new ChatGpt(properties);
-        } else {
-             assistant = new Ollama(properties);
-        }
-        return assistant;
     }
 }
