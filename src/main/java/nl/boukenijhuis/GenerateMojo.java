@@ -30,6 +30,9 @@ public class GenerateMojo extends AbstractMojo {
     private String model;
 
     @Parameter
+    private String maxTokens;
+
+    @Parameter
     private String timeout;
 
     @Parameter
@@ -48,19 +51,24 @@ public class GenerateMojo extends AbstractMojo {
 
         try {
 
+            // add all possible configuration values
             ArgumentList argumentList = new ArgumentList();
-            argumentList.add("--test-file", testFilePath);
+            argumentList.addIfValueIsNotNull("--test-file", testFilePath);
+            argumentList.addIfValueIsNotNull("--server", server);
+            argumentList.addIfValueIsNotNull("--url", url);
+            argumentList.addIfValueIsNotNull("--family", family);
+            argumentList.addIfValueIsNotNull("--model", model);
+            argumentList.addIfValueIsNotNull("--max-tokens", maxTokens);
+            argumentList.addIfValueIsNotNull("--timeout", timeout);
 
-            // TODO add all possible variables found at the top of this file
 
-            // create command line arguments
+            // a prompt should contain %s, which will be replaced by the contents of the testfile
             if (prompt != null) {
                 // check if the prompt contains a '%s'
                 if (!prompt.contains("%s")) {
                     getLog().info("!!! The provided prompt does NOT contain '%s': [" + prompt + "].");
                 }
-                // TODO does this argument exist?
-                argumentList.add("--prompt", prompt);
+                argumentList.addIfValueIsNotNull("--prompt", prompt);
             }
 
             // jarfiles are necessary for the compilation
@@ -81,9 +89,11 @@ public class GenerateMojo extends AbstractMojo {
     }
 
     static class ArgumentList extends ArrayList<String> {
-        public void add(String key, String value) {
-            add(key);
-            add(value);
+        public void addIfValueIsNotNull(String key, String value) {
+            if (value != null) {
+                add(key);
+                add(value);
+            }
         }
     }
 }
