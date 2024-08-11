@@ -79,7 +79,7 @@ public class GenerateMojo extends AbstractMojo {
 
             if (!result) {
                 throw new MojoExecutionException("No solution found");
-            }π
+            }
 
         } catch (IOException | DependencyResolutionRequiredException e) {
             e.printStackTrace(System.out);
