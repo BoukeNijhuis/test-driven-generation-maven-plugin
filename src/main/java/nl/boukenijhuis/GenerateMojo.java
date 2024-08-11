@@ -61,7 +61,7 @@ public class GenerateMojo extends AbstractMojo {
             argumentList.addIfValueIsNotNull("--max-tokens", maxTokens);
             argumentList.addIfValueIsNotNull("--timeout", timeout);
 
-
+            // TODO move this check to the jar
             // a prompt should contain %s, which will be replaced by the contents of the testfile
             if (prompt != null) {
                 // check if the prompt contains a '%s'
@@ -79,7 +79,7 @@ public class GenerateMojo extends AbstractMojo {
 
             if (!result) {
                 throw new MojoExecutionException("No solution found");
-            }
+            }π
 
         } catch (IOException | DependencyResolutionRequiredException e) {
             e.printStackTrace(System.out);
